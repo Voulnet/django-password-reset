@@ -2,39 +2,41 @@ from django import forms
 from django.core.validators import validate_email
 from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
+from playschedule.models import UserDetails
+
 
 from .utils import get_user_model
 
 
 class PasswordRecoveryForm(forms.Form):
-    username_or_email = forms.CharField()
+    username_or_Phone = forms.CharField()
 
     def __init__(self, *args, **kwargs):
         self.case_sensitive = kwargs.pop('case_sensitive', True)
-        search_fields = kwargs.pop('search_fields', ('username', 'email'))
+        search_fields = kwargs.pop('search_fields', ('username', 'Phone'))
         super(PasswordRecoveryForm, self).__init__(*args, **kwargs)
 
-        message = ("No other fields than username and email are supported "
+        message = ("No other fields than username and Phone number are supported "
                    "by default")
         if len(search_fields) not in (1, 2):
             raise ValueError(message)
         for field in search_fields:
-            if field not in ['username', 'email']:
+            if field not in ['username', 'Phone']:
                 raise ValueError(message)
 
         labels = {
             'username': _('Username'),
-            'email': _('Email'),
-            'both': _('Username or Email'),
+            'Phone': _('Phone'),
+            'both': _('Username or Phone'),
         }
         if len(search_fields) == 1:
             self.label_key = search_fields[0]
         else:
             self.label_key = 'both'
-        self.fields['username_or_email'].label = labels[self.label_key]
+        self.fields['username_or_Phone'].label = labels[self.label_key]
 
-    def clean_username_or_email(self):
-        username = self.cleaned_data['username_or_email']
+    def clean_username_or_Phone(self):
+        username = self.cleaned_data['username_or_Phone']
         cleaner = getattr(self, 'get_user_by_%s' % self.label_key)
         self.cleaned_data['user'] = cleaner(username)
         return username
@@ -48,13 +50,13 @@ class PasswordRecoveryForm(forms.Form):
             raise forms.ValidationError(_("Sorry, this user doesn't exist."))
         return user
 
-    def get_user_by_email(self, email):
-        validate_email(email)
+    def get_user_by_Phone(self, Phone):
+        validate_Phone(Phone)
         key = 'email__%sexact' % ('' if self.case_sensitive else 'i')
         User = get_user_model()
         try:
-            user = User.objects.get(**{key: email})
-        except User.DoesNotExist:
+            user = UserDetails.objects.get(**{key: Phone})
+        except:
             raise forms.ValidationError(_("Sorry, this user doesn't exist."))
         return user
 
@@ -62,7 +64,7 @@ class PasswordRecoveryForm(forms.Form):
         key = '__%sexact'
         key = key % '' if self.case_sensitive else key % 'i'
         f = lambda field: Q(**{field + key: username})
-        filters = f('username') | f('email')
+        filters = f('username') | f('Phone')
         User = get_user_model()
         try:
             user = User.objects.get(filters)
