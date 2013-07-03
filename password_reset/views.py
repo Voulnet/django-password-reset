@@ -86,7 +86,7 @@ class Recover(SaltMixin, generic.FormView):
         #### SMS password reset
         sms = loader.render_to_string(self.sms_template_name, context).strip()
         client = TwilioRestClient(settings.SMS_ACCOUNT, settings.SMS_AUTH_TOKEN)
-        user_details = UserDetails.object.get(user=self.user)
+        user_details = UserDetails.objects.get(user=self.user)
         client.sms.messages.create(to="+965"+user_details.Phone,
                                        from_=settings.SMS_NUMBER,
                                        body=sms)
