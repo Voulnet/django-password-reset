@@ -1,5 +1,6 @@
 import datetime
 
+from twilio.rest import TwilioRestClient
 from django.conf import settings
 from django.contrib.sites.models import RequestSite
 from django.core import signing
@@ -10,6 +11,7 @@ from django.http import Http404
 from django.template import loader
 from django.utils import timezone
 from django.views import generic
+from playschedule.models import UserDetails
 
 from .forms import PasswordRecoveryForm, PasswordResetForm
 from .utils import get_user_model
@@ -37,7 +39,7 @@ class RecoverDone(SaltMixin, generic.TemplateView):
     def get_context_data(self, **kwargs):
         ctx = super(RecoverDone, self).get_context_data(**kwargs)
         try:
-            ctx['timestamp'], ctx['email'] = loads_with_timestamp(
+            ctx['timestamp'], ctx['Phone'] = loads_with_timestamp(
                 self.kwargs['signature'], salt=self.url_salt,
             )
         except signing.BadSignature:
@@ -50,9 +52,10 @@ class Recover(SaltMixin, generic.FormView):
     case_sensitive = True
     form_class = PasswordRecoveryForm
     template_name = 'password_reset/recovery_form.html'
-    email_template_name = 'password_reset/recovery_email.txt'
-    email_subject_template_name = 'password_reset/recovery_email_subject.txt'
-    search_fields = ['username', 'email']
+    #email_template_name = 'password_reset/recovery_email.txt'
+    #email_subject_template_name = 'password_reset/recovery_email_subject.txt'
+    sms_template_name = 'password_reset_/recovery_sms.txt'
+    search_fields = ['username', 'Phone']
 
     def get_success_url(self):
         return reverse('password_reset_sent', args=[self.mail_signature])
@@ -76,12 +79,20 @@ class Recover(SaltMixin, generic.FormView):
             'token': signing.dumps(self.user.pk, salt=self.salt),
             'secure': self.request.is_secure(),
         }
-        body = loader.render_to_string(self.email_template_name,
-                                       context).strip()
-        subject = loader.render_to_string(self.email_subject_template_name,
-                                          context).strip()
-        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL,
-                  [self.user.email])
+        #body = loader.render_to_string(self.email_template_name,
+        #                               context).strip()
+        #subject = loader.render_to_string(self.email_subject_template_name,
+        #                                  context).strip()
+        #### SMS password reset
+        sms = loader.render_to_string(self.sms_template_name, context).strip()
+        client = TwilioRestClient(settings.SMS_ACCOUNT, settings.SMS_AUTH_TOKEN)
+        user_details = UserDetails.object.get(user=self.user)
+        client.sms.messages.create(to="+965"+user_details.Phone,
+                                       from_=settings.SMS_NUMBER,
+                                       body=sms)
+        
+        #send_mail(subject, body, settings.DEFAULT_FROM_EMAIL,
+         #         [self.user.email])
 
     def form_valid(self, form):
         self.user = form.cleaned_data['user']
@@ -94,7 +105,8 @@ class Recover(SaltMixin, generic.FormView):
             # since it may now be public information.
             email = self.user.username
         else:
-            email = self.user.email
+            user_details = UserDetails.objects.get(user=self.user)
+            email = user_details.Phone
         self.mail_signature = signing.dumps(email, salt=self.url_salt)
         return super(Recover, self).form_valid(form)
 recover = Recover.as_view()
