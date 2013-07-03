@@ -51,11 +51,12 @@ class PasswordRecoveryForm(forms.Form):
         return user
 
     def get_user_by_Phone(self, Phone):
-        validate_Phone(Phone)
-        key = 'email__%sexact' % ('' if self.case_sensitive else 'i')
+        #validate_Phone(Phone)
+        key = 'Phone__%sexact' % ('' if self.case_sensitive else 'i')
         User = get_user_model()
         try:
-            user = UserDetails.objects.get(**{key: Phone})
+            user_details = UserDetails.objects.get(Phone=Phone)
+            user = user_detail.user
         except:
             raise forms.ValidationError(_("Sorry, this user doesn't exist."))
         return user
@@ -64,7 +65,8 @@ class PasswordRecoveryForm(forms.Form):
         key = '__%sexact'
         key = key % '' if self.case_sensitive else key % 'i'
         f = lambda field: Q(**{field + key: username})
-        filters = f('username') | f('Phone')
+        filters = f('username') 
+        filters2 = f('Phone')
         User = get_user_model()
         try:
             user = User.objects.get(filters)
